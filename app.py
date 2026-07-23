@@ -11,7 +11,7 @@ st.set_page_config(
 )
 
 # --- CONFIGURAÇÃO DE SEGURANÇA ---
-SENHA_ACESSO = "1234"  # 👈 Altere a sua senha aqui se desejar!
+SENHA_ACESSO = "1234"
 
 NOME_ARQUIVO = "estoque_vinhos.json"
 
@@ -81,7 +81,6 @@ if not st.session_state.autenticado:
 
 # --- TELA PRINCIPAL (SISTEMA LIBERADO) ---
 else:
-    # Botão de Sair na barra lateral
     if st.sidebar.button("🔒 Sair do Sistema"):
         st.session_state.autenticado = False
         st.rerun()
@@ -90,7 +89,6 @@ else:
     st.caption("Sistema de Gestão de Pallets e Embalagens")
     st.markdown("---")
 
-    # Menu lateral igual às suas opções
     menu = st.sidebar.radio(
         "Menu Principal",
         [
@@ -103,25 +101,22 @@ else:
         ],
     )
 
-    # 1. BUSCAR VINHO
+    # 1. BUSCAR VINHO (CORRIGIDO E SEGURO)
     if menu == "1. Buscar vinho":
         st.header("🔍 BUSCAR VINHO")
         sub_op = st.radio("Como deseja buscar?", ["Por Nome", "Por Tipo"])
         termo = st.text_input("Digite o termo de busca:").strip().lower()
 
         if termo:
-            if sub_op == "Por Nome":
-                resultados = [
-                    v
-                    for v in st.session_state.estoque
-                    if termo in v["nome"].lower()
-                ]
-            else:
-                resultados = [
-                    v
-                    for v in st.session_state.estoque
-                    if termo in v["tipo"].lower()
-                ]
+            resultados = []
+            for v in st.session_state.estoque:
+                nome_vinho = str(v.get("nome", "")).lower()
+                tipo_vinho = str(v.get("tipo", "")).lower()
+
+                if sub_op == "Por Nome" and termo in nome_vinho:
+                    resultados.append(v)
+                elif sub_op == "Por Tipo" and termo in tipo_vinho:
+                    resultados.append(v)
 
             if not resultados:
                 st.warning("⚠️ Nenhum vinho encontrado.")
@@ -129,9 +124,9 @@ else:
                 st.success(f"Encontrado(s) {len(resultados)} resultado(s):")
                 for v in resultados:
                     with st.expander(
-                        f"🍷 {v['nome']} ({v['tipo']}) ➔ 📍 {v['pallet']}"
+                        f"🍷 {v.get('nome', '')} ({v.get('tipo', '')}) ➔ 📍 {v.get('pallet', '')}"
                     ):
-                        st.write(f"**Localização:** {v['pallet']}")
+                        st.write(f"**Localização:** {v.get('pallet', 'N/I')}")
                         st.write(f"**Caixa:** {v.get('caixa', 'N/I')}")
                         st.write(f"**Volume:** {v.get('volume', 'N/I')}")
 
@@ -155,12 +150,7 @@ else:
 
             vol_opcao = st.selectbox(
                 "🧪 Volume / Tamanho da garrafa:",
-                [
-                    "750ml",
-                    "375ml",
-                    "1500ml (Magnum)",
-                    "Outro valor",
-                ],
+                ["750ml", "375ml", "1500ml (Magnum)", "Outro valor"],
             )
 
             volume_custom = ""
@@ -206,9 +196,9 @@ else:
 
             lista_exibicao = list(st.session_state.estoque)
             if ordem == "Ordem Alfabética (Nome)":
-                lista_exibicao.sort(key=lambda x: x["nome"].lower())
+                lista_exibicao.sort(key=lambda x: str(x.get("nome", "")).lower())
             elif ordem == "Agrupado por Localização (Pallet)":
-                lista_exibicao.sort(key=lambda x: x["pallet"].lower())
+                lista_exibicao.sort(key=lambda x: str(x.get("pallet", "")).lower())
 
             df = pd.DataFrame(lista_exibicao)
             df.rename(
@@ -247,12 +237,6 @@ else:
                 nova_caixa = st.selectbox(
                     "Caixa:",
                     ["12 garrafas", "6 garrafas", "3 garrafas", "1 garrafa"],
-                    index=[
-                        "12 garrafas",
-                        "6 garrafas",
-                        "3 garrafas",
-                        "1 garrafa",
-                    ].index(vinho.get("caixa", "12 garrafas")),
                 )
                 novo_volume = st.text_input(
                     "Volume:", vinho.get("volume", "750ml")
@@ -306,7 +290,7 @@ else:
                 mime="text/csv",
             )
             st.info(
-                "💡 Ao clicar no botão, o arquivo será salvo na sua pasta de Downloads!"
+                "💡 Ao clicar no botão, o arquivo será salvo no seu dispositivo!"
             )
         else:
             st.warning("Nenhum dado para exportar.")
