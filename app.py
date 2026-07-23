@@ -5,7 +5,7 @@ import streamlit as st
 
 # Configuração da página
 st.set_page_config(
-    page_title="Controle de Estoque de Vinhos",
+    page_title="Mapa de estoque Premium wines",
     page_icon="🍷",
     layout="wide",
 )
@@ -66,7 +66,7 @@ if "admin_autenticado" not in st.session_state:
     st.session_state.admin_autenticado = False
 
 # --- CABEÇALHO ---
-st.title("🍷 CONTROLE DE ESTOQUE DE VINHOS")
+st.title("🍷 MAPA DE ESTOQUE PREMIUM WINES")
 st.caption("Sistema de Localização de Pallets e Gestão")
 
 # Área de Login de Administrador no topo do menu lateral
