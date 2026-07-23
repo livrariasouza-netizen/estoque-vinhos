@@ -11,8 +11,12 @@ st.set_page_config(
 )
 
 # --- CONFIGURAÇÃO DE SEGURANÇA ---
-SENHA_ADMIN = "1234"  # 👈 Troque aqui pela sua senha secreta de administrador!
+SENHA_ADMIN = "1234"  # 👈 Troque aqui pela sua senha secreta!
 NOME_ARQUIVO = "estoque_vinhos.json"
+
+# --- INFORMAÇÕES DO DESENVOLVEDOR ---
+NOME_DEV = "Vagner Souza"
+FONE_DEV = "(31) 98968-4010"  # 👈 Coloque seu número de telefone/WhatsApp aqui
 
 estoque_padrao = [
     {
@@ -69,6 +73,22 @@ if "admin_autenticado" not in st.session_state:
 st.title("🍷 MAPA DE ESTOQUE PREMIUM WINES")
 st.caption("Sistema de Localização de Pallets e Gestão")
 
+# --- PAINEL DE RESUMO (MÉTRICAS RÁPIDAS) ---
+if st.session_state.estoque:
+    col1, col2, col3 = st.columns(3)
+    total_rotulos = len(st.session_state.estoque)
+    pallets_unicos = len(
+        set(v.get("pallet", "") for v in st.session_state.estoque if v.get("pallet"))
+    )
+    tipos_unicos = len(
+        set(v.get("tipo", "") for v in st.session_state.estoque if v.get("tipo"))
+    )
+
+    col1.metric("📦 Rótulos Cadastrados", total_rotulos)
+    col2.metric("📍 Pallets Ocupados", pallets_unicos)
+    col3.metric("🍇 Tipos de Vinho", tipos_unicos)
+    st.markdown("---")
+
 # Área de Login de Administrador no topo do menu lateral
 st.sidebar.markdown("### 🔐 Área do Administrador")
 if not st.session_state.admin_autenticado:
@@ -102,6 +122,11 @@ menu = st.sidebar.radio(
         "6. Exportar tabela (Público)",
     ],
 )
+
+# --- RODAPÉ DO DESENVOLVEDOR NO MENU LATERAL ---
+st.sidebar.markdown("---")
+st.sidebar.markdown(f"**Desenvolvido por:** {NOME_DEV}")
+st.sidebar.markdown(f"📞 **Contato:** {FONE_DEV}")
 
 # 1. BUSCAR VINHO
 if menu == "1. Buscar vinho (Público)":
@@ -329,3 +354,4 @@ elif menu == "6. Exportar tabela (Público)":
         st.info("💡 O arquivo será salvo na pasta de Downloads do seu dispositivo.")
     else:
         st.warning("Nenhum dado para exportar.")
+    
