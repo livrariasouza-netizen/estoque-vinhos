@@ -11,12 +11,12 @@ st.set_page_config(
 )
 
 # --- CONFIGURAÇÃO DE SEGURANÇA ---
-SENHA_ADMIN = "1234"  # 👈 Sua senha de administrador
+SENHA_ADMIN = "1980"  # 👈 Sua senha de administrador
 NOME_ARQUIVO = "estoque_vinhos.json"
 
 # --- INFORMAÇÕES DO DESENVOLVEDOR ---
 NOME_DEV = "Vagner Souza"
-FONE_DEV = "(31) 99999-9999"  # 👈 Ajuste seu telefone/WhatsApp aqui
+FONE_DEV = "(31) 98968-4010"  # 👈 Ajuste seu telefone/WhatsApp aqui
 
 estoque_padrao = [
     {
@@ -48,10 +48,11 @@ def carregar_dados():
         try:
             with open(NOME_ARQUIVO, "r", encoding="utf-8") as f:
                 dados = json.load(f)
-                return dados if isinstance(dados, list) else estoque_padrao
+                if isinstance(dados, list) and len(dados) > 0:
+                    return dados
         except Exception:
-            return estoque_padrao
-    return estoque_padrao
+            pass
+    return [dict(item) for item in estoque_padrao]
 
 
 def salvar_dados(estoque):
@@ -62,7 +63,7 @@ def salvar_dados(estoque):
         st.error(f"Erro ao salvar dados: {e}")
 
 
-# Inicializa a sessão
+# Inicializa a sessão uma única vez
 if "estoque" not in st.session_state:
     st.session_state.estoque = carregar_dados()
 
@@ -72,7 +73,6 @@ if "admin_autenticado" not in st.session_state:
 # --- EXIBIÇÃO DA LOGO NO TOPO ---
 col_logo, col_titulo = st.columns([1, 4])
 
-# Lista de possíveis nomes de arquivo de imagem da logo
 nomes_logo = [
     "PremiumWines_OG-Image.jpg",
     "logo.jpg",
@@ -97,26 +97,6 @@ with col_titulo:
     st.caption("Sistema de Localização de Pallets e Gestão de Estoque")
 
 st.markdown("---")
-
-# --- PAINEL DE RESUMO (MÉTRICAS RÁPIDAS) ---
-if st.session_state.estoque:
-    c1, c2, c3 = st.columns(3)
-    total_rotulos = len(st.session_state.estoque)
-    pallets_unicos = len(
-        set(
-            v.get("pallet", "")
-            for v in st.session_state.estoque
-            if v.get("pallet")
-        )
-    )
-    tipos_unicos = len(
-        set(v.get("tipo", "") for v in st.session_state.estoque if v.get("tipo"))
-    )
-
-    c1.metric("📦 Rótulos Cadastrados", total_rotulos)
-    c2.metric("📍 Pallets Ocupados", pallets_unicos)
-    c3.metric("🍇 Tipos de Vinho", tipos_unicos)
-    st.markdown("---")
 
 # --- ÁREA DO ADMINISTRADOR (MENU LATERAL) ---
 st.sidebar.markdown("### 🔐 Área do Administrador")
@@ -270,6 +250,7 @@ elif menu == "3. Cadastrar novo vinho (Admin)":
                     st.session_state.estoque.append(novo_vinho)
                     salvar_dados(st.session_state.estoque)
                     st.success(f"✅ '{nome}' cadastrado com sucesso!")
+                    st.rerun()
                 else:
                     st.error("❌ Nome, Tipo e Localização são obrigatórios!")
 
@@ -383,4 +364,3 @@ elif menu == "6. Exportar tabela (Público)":
         st.info("💡 O arquivo será salvo na pasta de Downloads do seu dispositivo.")
     else:
         st.warning("Nenhum dado para exportar.")
-            
