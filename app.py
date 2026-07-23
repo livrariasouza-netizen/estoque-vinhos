@@ -3,7 +3,7 @@ import os
 import pandas as pd
 import streamlit as st
 
-# Configuração visual do aplicativo
+# Configuração da página
 st.set_page_config(
     page_title="Controle de Estoque de Vinhos",
     page_icon="🍷",
@@ -12,7 +12,6 @@ st.set_page_config(
 
 # --- CONFIGURAÇÃO DE SEGURANÇA ---
 SENHA_ACESSO = "1234"
-
 NOME_ARQUIVO = "estoque_vinhos.json"
 
 estoque_padrao = [
@@ -44,7 +43,8 @@ def carregar_dados():
     if os.path.exists(NOME_ARQUIVO):
         try:
             with open(NOME_ARQUIVO, "r", encoding="utf-8") as f:
-                return json.load(f)
+                dados = json.load(f)
+                return dados if isinstance(dados, list) else estoque_padrao
         except Exception:
             return estoque_padrao
     return estoque_padrao
@@ -58,7 +58,7 @@ def salvar_dados(estoque):
         st.error(f"Erro ao salvar dados: {e}")
 
 
-# Inicializa os dados na sessão
+# Inicializa a sessão
 if "estoque" not in st.session_state:
     st.session_state.estoque = carregar_dados()
 
@@ -79,7 +79,7 @@ if not st.session_state.autenticado:
         else:
             st.error("Senha incorreta! Acesso negado.")
 
-# --- TELA PRINCIPAL (SISTEMA LIBERADO) ---
+# --- TELA PRINCIPAL ---
 else:
     if st.sidebar.button("🔒 Sair do Sistema"):
         st.session_state.autenticado = False
@@ -101,7 +101,7 @@ else:
         ],
     )
 
-    # 1. BUSCAR VINHO (CORRIGIDO E SEGURO)
+    # 1. BUSCAR VINHO
     if menu == "1. Buscar vinho":
         st.header("🔍 BUSCAR VINHO")
         sub_op = st.radio("Como deseja buscar?", ["Por Nome", "Por Tipo"])
@@ -124,7 +124,7 @@ else:
                 st.success(f"Encontrado(s) {len(resultados)} resultado(s):")
                 for v in resultados:
                     with st.expander(
-                        f"🍷 {v.get('nome', '')} ({v.get('tipo', '')}) ➔ 📍 {v.get('pallet', '')}"
+                        f"🍷 {v.get('nome', 'Sem nome')} ({v.get('tipo', 'S/T')}) ➔ 📍 {v.get('pallet', 'S/P')}"
                     ):
                         st.write(f"**Localização:** {v.get('pallet', 'N/I')}")
                         st.write(f"**Caixa:** {v.get('caixa', 'N/I')}")
@@ -178,7 +178,7 @@ else:
                 else:
                     st.error("❌ Nome, Tipo e Localização são obrigatórios!")
 
-    # 3. VER TODOS OS VINHOS
+    # 3. VER TODOS OS VINHOS (CORRIGIDO)
     elif menu == "3. Ver todos os vinhos":
         st.header("🍷 TODOS OS VINHOS")
 
@@ -194,58 +194,82 @@ else:
                 ],
             )
 
-            lista_exibicao = list(st.session_state.estoque)
+            lista_exibicao = [dict(v) for v in st.session_state.estoque]
+
             if ordem == "Ordem Alfabética (Nome)":
-                lista_exibicao.sort(key=lambda x: str(x.get("nome", "")).lower())
+                lista_exibicao.sort(
+                    key=lambda x: str(x.get("nome", "")).lower()
+                )
             elif ordem == "Agrupado por Localização (Pallet)":
-                lista_exibicao.sort(key=lambda x: str(x.get("pallet", "")).lower())
+                lista_exibicao.sort(
+                    key=lambda x: str(x.get("pallet", "")).lower()
+                )
 
             df = pd.DataFrame(lista_exibicao)
-            df.rename(
-                columns={
-                    "nome": "Nome do Vinho",
-                    "tipo": "Tipo",
-                    "pallet": "Localização (Pallet)",
-                    "caixa": "Caixa",
-                    "volume": "Volume",
-                },
-                inplace=True,
-            )
+            colunas_map = {
+                "nome": "Nome do Vinho",
+                "tipo": "Tipo",
+                "pallet": "Localização (Pallet)",
+                "caixa": "Caixa",
+                "volume": "Volume",
+            }
+            df.rename(columns=colunas_map, inplace=True)
             st.dataframe(df, use_container_width=True)
 
-    # 4. EDITAR VINHO
+    # 4. EDITAR VINHO (CORRIGIDO)
     elif menu == "4. Editar vinho existente":
         st.header("✏️ EDITAR VINHO")
 
         if not st.session_state.estoque:
             st.warning("Nenhum vinho cadastrado.")
         else:
-            nomes = [v["nome"] for v in st.session_state.estoque]
-            selecionado = st.selectbox(
-                "Selecione o vinho que deseja editar:", nomes
+            opcoes = [
+                f"{i + 1}. {v.get('nome', 'Sem nome')} - 📍 {v.get('pallet', 'Sem local')}"
+                for i, v in enumerate(st.session_state.estoque)
+            ]
+            idx_selecionado = st.selectbox(
+                "Selecione o vinho que deseja editar:",
+                range(len(opcoes)),
+                format_func=lambda x: opcoes[x],
             )
 
-            idx = nomes.index(selecionado)
-            vinho = st.session_state.estoque[idx]
+            vinho = st.session_state.estoque[idx_selecionado]
 
             with st.form("form_editar"):
-                novo_nome = st.text_input("Novo Nome:", vinho["nome"])
-                novo_tipo = st.text_input("Novo Tipo:", vinho["tipo"])
+                novo_nome = st.text_input(
+                    "Novo Nome:", str(vinho.get("nome", ""))
+                )
+                novo_tipo = st.text_input(
+                    "Novo Tipo:", str(vinho.get("tipo", ""))
+                )
                 novo_pallet = st.text_input(
-                    "Nova Localização:", vinho["pallet"]
+                    "Nova Localização:", str(vinho.get("pallet", ""))
+                )
+
+                opcoes_caixa = [
+                    "12 garrafas",
+                    "6 garrafas",
+                    "3 garrafas",
+                    "1 garrafa",
+                ]
+                caixa_atual = vinho.get("caixa", "12 garrafas")
+                idx_caixa = (
+                    opcoes_caixa.index(caixa_atual)
+                    if caixa_atual in opcoes_caixa
+                    else 0
                 )
                 nova_caixa = st.selectbox(
-                    "Caixa:",
-                    ["12 garrafas", "6 garrafas", "3 garrafas", "1 garrafa"],
+                    "Caixa:", opcoes_caixa, index=idx_caixa
                 )
+
                 novo_volume = st.text_input(
-                    "Volume:", vinho.get("volume", "750ml")
+                    "Volume:", str(vinho.get("volume", "750ml"))
                 )
 
                 submit_edit = st.form_submit_button("💾 Salvar Alterações")
 
                 if submit_edit:
-                    st.session_state.estoque[idx] = {
+                    st.session_state.estoque[idx_selecionado] = {
                         "nome": novo_nome,
                         "tipo": novo_tipo,
                         "pallet": novo_pallet,
@@ -254,25 +278,33 @@ else:
                     }
                     salvar_dados(st.session_state.estoque)
                     st.success(f"✅ '{novo_nome}' atualizado com sucesso!")
+                    st.rerun()
 
-    # 5. EXCLUIR VINHO
+    # 5. EXCLUIR VINHO (CORRIGIDO)
     elif menu == "5. Excluir vinho":
         st.header("🗑️ EXCLUIR VINHO")
 
         if not st.session_state.estoque:
             st.warning("Nenhum vinho cadastrado.")
         else:
-            nomes = [v["nome"] for v in st.session_state.estoque]
-            vinho_excluir = st.selectbox("Selecione o vinho a remover:", nomes)
+            opcoes_excluir = [
+                f"{i + 1}. {v.get('nome', 'Sem nome')} ({v.get('tipo', 'S/T')}) - 📍 {v.get('pallet', 'Sem local')}"
+                for i, v in enumerate(st.session_state.estoque)
+            ]
+
+            idx_excluir = st.selectbox(
+                "Selecione o vinho a remover:",
+                range(len(opcoes_excluir)),
+                format_func=lambda x: opcoes_excluir[x],
+            )
+
+            vinho_alvo = st.session_state.estoque[idx_excluir]
 
             if st.button("❌ Confirmar Exclusão"):
-                st.session_state.estoque = [
-                    v
-                    for v in st.session_state.estoque
-                    if v["nome"] != vinho_excluir
-                ]
+                nome_removido = vinho_alvo.get("nome", "Vinho")
+                st.session_state.estoque.pop(idx_excluir)
                 salvar_dados(st.session_state.estoque)
-                st.success(f"✅ '{vinho_excluir}' excluído com sucesso!")
+                st.success(f"✅ '{nome_removido}' excluído com sucesso!")
                 st.rerun()
 
     # 6. EXPORTAR PLANILHA
