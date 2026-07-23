@@ -94,7 +94,7 @@ with col_logo:
 
 with col_titulo:
     st.title("MAPA DE ESTOQUE PREMIUM WINES")
-    st.caption("Sistema de Localização de Pallets e Gestão de Estoque")
+    st.caption("Sistema de Localização de Vinhos")
 
 st.markdown("---")
 
