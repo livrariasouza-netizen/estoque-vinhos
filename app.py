@@ -1,14 +1,42 @@
-import csv
 import json
 import os
-import sys
+import pandas as pd
+import streamlit as st
+
+# Configuração visual do aplicativo
+st.set_page_config(
+    page_title="Controle de Estoque de Vinhos",
+    page_icon="🍷",
+    layout="wide",
+)
+
+# --- CONFIGURAÇÃO DE SEGURANÇA ---
+SENHA_ACESSO = "1234"  # 👈 Altere a sua senha aqui se desejar!
 
 NOME_ARQUIVO = "estoque_vinhos.json"
 
 estoque_padrao = [
-    {"nome": "Quereu Rose 2024", "tipo": "Rose", "pallet": "Pallet 1", "caixa": "12 garrafas", "volume": "750ml"},
-    {"nome": "Quereu Carmenere", "tipo": "Tinto", "pallet": "Pallet 2", "caixa": "6 garrafas", "volume": "750ml"},
-    {"nome": "Quereu Chardonnay", "tipo": "Branco", "pallet": "Pallet 2", "caixa": "12 garrafas", "volume": "375ml"},
+    {
+        "nome": "Quereu Rose 2024",
+        "tipo": "Rosé",
+        "pallet": "Pallet 1",
+        "caixa": "12 garrafas",
+        "volume": "750ml",
+    },
+    {
+        "nome": "Quereu Carmenere",
+        "tipo": "Tinto",
+        "pallet": "Pallet 2",
+        "caixa": "6 garrafas",
+        "volume": "750ml",
+    },
+    {
+        "nome": "Quereu Chardonnay",
+        "tipo": "Branco",
+        "pallet": "Pallet 2",
+        "caixa": "12 garrafas",
+        "volume": "375ml",
+    },
 ]
 
 
@@ -26,294 +54,259 @@ def salvar_dados(estoque):
     try:
         with open(NOME_ARQUIVO, "w", encoding="utf-8") as f:
             json.dump(estoque, f, ensure_ascii=False, indent=4)
-        print("💾 Alterações salvas no dispositivo!")
     except Exception as e:
-        print(f"❌ Erro ao salvar dados: {e}")
+        st.error(f"Erro ao salvar dados: {e}")
 
 
-def selecionar_caixa():
-    print("\n📦 Qual a quantidade de garrafas por caixa?")
-    print("1. Caixa c/ 12")
-    print("2. Caixa c/ 6")
-    print("3. Caixa c/ 3")
-    print("4. Unidade (1 garrafa)")
-    op = input("Opção (1-4): ").strip()
+# Inicializa os dados na sessão
+if "estoque" not in st.session_state:
+    st.session_state.estoque = carregar_dados()
 
-    mapeamento = {"1": "12 garrafas", "2": "6 garrafas", "3": "3 garrafas", "4": "1 garrafa"}
-    return mapeamento.get(op, "12 garrafas")
+if "autenticado" not in st.session_state:
+    st.session_state.autenticado = False
 
+# --- TELA DE LOGIN ---
+if not st.session_state.autenticado:
+    st.title("🔒 Acesso Restrito - Controle de Estoque")
+    st.info("Digite a senha para acessar o localizador de vinhos.")
 
-def selecionar_volume():
-    print("\n🧪 Qual o volume/tamanho da garrafa?")
-    print("1. 750 ml (Padrão)")
-    print("2. 375 ml (Meia garrafa)")
-    print("3. 1500 ml / 1.5L (Magnum)")
-    print("4. Outro valor")
-    op = input("Opção (1-4): ").strip()
-
-    if op == "1":
-        return "750ml"
-    elif op == "2":
-        return "375ml"
-    elif op == "3":
-        return "1500ml (Magnum)"
-    elif op == "4":
-        custom = input("Digite o volume (ex: 187ml, 3000ml): ").strip()
-        return custom if custom else "750ml"
-    return "750ml"
-
-
-def buscar_vinho(estoque_vinhos):
-    print("\n--- 🔍 BUSCAR VINHO ---")
-    print("1. Buscar por Nome")
-    print("2. Buscar por Tipo")
-    print("0. Voltar")
-
-    sub_op = input("Escolha uma opção: ").strip()
-    if sub_op == "0":
-        return
-
-    resultados = []
-    if sub_op == "1":
-        termo = input("\nDigite o nome do vinho: ").strip().lower()
-        resultados = [v for v in estoque_vinhos if termo in v["nome"].lower()]
-    elif sub_op == "2":
-        termo = input("\nDigite o tipo (Tinto, Branco, Rosé...): ").strip().lower()
-        resultados = [v for v in estoque_vinhos if termo in v["tipo"].lower()]
-    else:
-        print("\n❌ Opção inválida!")
-        return
-
-    if not resultados:
-        print("\n⚠️ Nenhum vinho encontrado.")
-        return
-
-    print(f"\nEncontrado(s) {len(resultados)} resultado(s):")
-    for idx, vinho in enumerate(resultados, 1):
-        print(f"{idx}. {vinho['nome']} ({vinho['tipo']}) ➔ 📍 {vinho['pallet']}")
-
-    escolha = input("\nDigite o número para ver detalhes (0 para voltar): ").strip()
-    if escolha.isdigit():
-        idx = int(escolha) - 1
-        if 0 <= idx < len(resultados):
-            v = resultados[idx]
-            print(f"\n🍷 Nome: {v['nome']}")
-            print(f"🍇 Tipo: {v['tipo']}")
-            print(f"📍 Localização: {v['pallet']}")
-            print(f"📦 Caixa: {v.get('caixa', 'N/I')}")
-            print(f"🧪 Volume: {v.get('volume', 'N/I')}")
-
-
-def cadastrar_vinho(estoque_vinhos):
-    print("\n--- ➕ CADASTRAR VINHO ---")
-
-    nome = input("Nome do vinho: ").strip()
-    tipo = input("Tipo (Tinto, Branco, Rosé, Espumante...): ").strip()
-    pallet = input("Localização (Ex: Pallet 1, Corredor B...): ").strip()
-
-    if not (nome and tipo and pallet):
-        print("\n❌ Nome, Tipo e Localização são obrigatórios!")
-        return
-
-    caixa = selecionar_caixa()
-    volume = selecionar_volume()
-
-    print("\n-----------------------------")
-    print(f"🍷 Nome: {nome}")
-    print(f"🍇 Tipo: {tipo}")
-    print(f"📍 Localização: {pallet}")
-    print(f"📦 Caixa: {caixa}")
-    print(f"🧪 Volume: {volume}")
-    print("-----------------------------")
-    confirmar = input("Os dados estão corretos? (S/N): ").strip().upper()
-
-    if confirmar == "S":
-        novo_vinho = {
-            "nome": nome,
-            "tipo": tipo,
-            "pallet": pallet,
-            "caixa": caixa,
-            "volume": volume
-        }
-        estoque_vinhos.append(novo_vinho)
-        print(f"\n✅ '{nome}' cadastrado com sucesso!")
-        salvar_dados(estoque_vinhos)
-    else:
-        print("\n❌ Cadastro cancelado!")
-
-
-def editar_vinho(estoque_vinhos):
-    print("\n--- ✏️ EDITAR VINHO ---")
-    if not estoque_vinhos:
-        print("Nenhum vinho cadastrado.")
-        return
-
-    for i, v in enumerate(estoque_vinhos, 1):
-        print(f"{i}. {v['nome']} ➔ 📍 {v['pallet']}")
-
-    escolha = input("\nDigite o número do vinho que deseja editar (0 para cancelar): ").strip()
-    if escolha.isdigit():
-        idx = int(escolha) - 1
-        if 0 <= idx < len(estoque_vinhos):
-            v = estoque_vinhos[idx]
-            print(f"\nEditando '{v['nome']}'. Deixe em branco se NÃO quiser alterar o campo.")
-
-            novo_nome = input(f"Novo Nome [{v['nome']}]: ").strip()
-            novo_tipo = input(f"Novo Tipo [{v['tipo']}]: ").strip()
-            novo_pallet = input(f"Nova Localização [{v['pallet']}]: ").strip()
-
-            if novo_nome:
-                v['nome'] = novo_nome
-            if novo_tipo:
-                v['tipo'] = novo_tipo
-            if novo_pallet:
-                v['pallet'] = novo_pallet
-
-            mudar_caixa = input(f"Deseja alterar a caixa? Atual: {v.get('caixa', 'N/I')} (S/N): ").strip().upper()
-            if mudar_caixa == "S":
-                v['caixa'] = selecionar_caixa()
-
-            mudar_vol = input(f"Deseja alterar o volume? Atual: {v.get('volume', 'N/I')} (S/N): ").strip().upper()
-            if mudar_vol == "S":
-                v['volume'] = selecionar_volume()
-
-            print(f"\n✅ '{v['nome']}' atualizado com sucesso!")
-            salvar_dados(estoque_vinhos)
-
-
-def ver_todos_vinhos(estoque_vinhos):
-    print("\n--- 🍷 TODOS OS VINHOS ---")
-    if not estoque_vinhos:
-        print("Nenhum vinho cadastrado.")
-        return
-
-    print("Como deseja visualizar?")
-    print("1. Ordem padrão")
-    print("2. Ordem Alfabética (Nome)")
-    print("3. Agrupado por Localização (Pallet)")
-    
-    op = input("Opção (1-3): ").strip()
-
-    lista_exibicao = list(estoque_vinhos)
-    if op == "2":
-        lista_exibicao.sort(key=lambda x: x["nome"].lower())
-    elif op == "3":
-        lista_exibicao.sort(key=lambda x: x["pallet"].lower())
-
-    print("\n" + "=" * 50)
-    for i, v in enumerate(lista_exibicao, 1):
-        caixa_info = v.get('caixa', 'N/I')
-        vol_info = v.get('volume', 'N/I')
-        print(f"{i}. {v['nome']} ({v['tipo']})")
-        print(f"   📍 {v['pallet']} | 📦 {caixa_info} | 🧪 {vol_info}")
-        print("-" * 50)
-
-
-def excluir_vinho(estoque_vinhos):
-    print("\n--- 🗑️ EXCLUIR VINHO ---")
-    if not estoque_vinhos:
-        print("Nenhum vinho cadastrado.")
-        return
-
-    print("1. Excluir pelo NÚMERO da lista")
-    print("2. Excluir pelo NOME")
-    print("0. Cancelar")
-    modo = input("Opção: ").strip()
-
-    if modo == "1":
-        for i, v in enumerate(estoque_vinhos, 1):
-            print(f"{i}. {v['nome']} ({v['tipo']})")
-        escolha = input("\nNúmero do vinho a excluir (0 para cancelar): ").strip()
-        if escolha.isdigit():
-            idx = int(escolha) - 1
-            if 0 <= idx < len(estoque_vinhos):
-                removido = estoque_vinhos.pop(idx)
-                print(f"\n✅ '{removido['nome']}' excluído!")
-                salvar_dados(estoque_vinhos)
-
-    elif modo == "2":
-        termo = input("\nDigite o nome a buscar: ").strip().lower()
-        encontrados = [v for v in estoque_vinhos if termo in v["nome"].lower()]
-        if not encontrados:
-            print("\n⚠️ Nenhum vinho encontrado.")
-            return
-
-        for i, v in enumerate(encontrados, 1):
-            print(f"{i}. {v['nome']} - {v['pallet']}")
-        escolha = input("\nEscolha o número para excluir (0 para cancelar): ").strip()
-        if escolha.isdigit():
-            idx = int(escolha) - 1
-            if 0 <= idx < len(encontrados):
-                alvo = encontrados[idx]
-                estoque_vinhos.remove(alvo)
-                print(f"\n✅ '{alvo['nome']}' excluído!")
-                salvar_dados(estoque_vinhos)
-
-
-# FUNÇÃO DE EXPORTAR ATUALIZADA (SALVA EM DOWNLOADS)
-def exportar_excel(estoque_vinhos):
-    print("\n--- 📤 EXPORTAR PARA EXCEL/CSV ---")
-    if not estoque_vinhos:
-        print("Nenhum vinho para exportar.")
-        return
-
-    # Salva na pasta 'Download' do celular
-    caminho_arquivo = "/sdcard/Download/estoque_vinhos.csv"
-
-    try:
-        with open(caminho_arquivo, "w", newline="", encoding="utf-8-sig") as f:
-            writer = csv.writer(f, delimiter=";")
-            writer.writerow(["Nome do Vinho", "Tipo", "Localização (Pallet)", "Caixa", "Volume"])
-            
-            for v in estoque_vinhos:
-                writer.writerow([
-                    v.get("nome", ""),
-                    v.get("tipo", ""),
-                    v.get("pallet", ""),
-                    v.get("caixa", "N/I"),
-                    v.get("volume", "N/I")
-                ])
-        print("📊 Planilha gerada com sucesso!")
-        print(f"📁 Arquivo salvo em: {caminho_arquivo}")
-        print("💡 Abra a pasta 'Downloads' do celular para ver a planilha!")
-    except Exception as e:
-        print(f"❌ Erro ao exportar: {e}")
-
-
-def menu_principal():
-    estoque_vinhos = carregar_dados()
-
-    while True:
-        print("\n===================================")
-        print("🍷 CONTROLE DE ESTOQUE DE VINHOS")
-        print("1. Buscar vinho")
-        print("2. Cadastrar novo vinho")
-        print("3. Ver todos os vinhos (com Filtros)")
-        print("4. Editar vinho existente")
-        print("5. Excluir vinho")
-        print("6. Exportar tabela para Excel (CSV)")
-        print("7. Sair")
-
-        opcao = input("Escolha uma opção: ").strip()
-
-        if opcao == "1":
-            buscar_vinho(estoque_vinhos)
-        elif opcao == "2":
-            cadastrar_vinho(estoque_vinhos)
-        elif opcao == "3":
-            ver_todos_vinhos(estoque_vinhos)
-        elif opcao == "4":
-            editar_vinho(estoque_vinhos)
-        elif opcao == "5":
-            excluir_vinho(estoque_vinhos)
-        elif opcao == "6":
-            exportar_excel(estoque_vinhos)
-        elif opcao == "7":
-            print("\nSaindo... Bom trabalho!")
-            sys.exit()
+    senha_input = st.text_input("Digite a senha de acesso:", type="password")
+    if st.button("Entrar no Sistema"):
+        if senha_input == SENHA_ACESSO:
+            st.session_state.autenticado = True
+            st.success("Acesso liberado!")
+            st.rerun()
         else:
-            print("\n❌ Opção inválida. Tente novamente.")
+            st.error("Senha incorreta! Acesso negado.")
 
+# --- TELA PRINCIPAL (SISTEMA LIBERADO) ---
+else:
+    # Botão de Sair na barra lateral
+    if st.sidebar.button("🔒 Sair do Sistema"):
+        st.session_state.autenticado = False
+        st.rerun()
 
-if __name__ == "__main__":
-    menu_principal()
+    st.title("🍷 CONTROLE DE ESTOQUE DE VINHOS")
+    st.caption("Sistema de Gestão de Pallets e Embalagens")
+    st.markdown("---")
+
+    # Menu lateral igual às suas opções
+    menu = st.sidebar.radio(
+        "Menu Principal",
+        [
+            "1. Buscar vinho",
+            "2. Cadastrar novo vinho",
+            "3. Ver todos os vinhos",
+            "4. Editar vinho existente",
+            "5. Excluir vinho",
+            "6. Exportar tabela para Excel (CSV)",
+        ],
+    )
+
+    # 1. BUSCAR VINHO
+    if menu == "1. Buscar vinho":
+        st.header("🔍 BUSCAR VINHO")
+        sub_op = st.radio("Como deseja buscar?", ["Por Nome", "Por Tipo"])
+        termo = st.text_input("Digite o termo de busca:").strip().lower()
+
+        if termo:
+            if sub_op == "Por Nome":
+                resultados = [
+                    v
+                    for v in st.session_state.estoque
+                    if termo in v["nome"].lower()
+                ]
+            else:
+                resultados = [
+                    v
+                    for v in st.session_state.estoque
+                    if termo in v["tipo"].lower()
+                ]
+
+            if not resultados:
+                st.warning("⚠️ Nenhum vinho encontrado.")
+            else:
+                st.success(f"Encontrado(s) {len(resultados)} resultado(s):")
+                for v in resultados:
+                    with st.expander(
+                        f"🍷 {v['nome']} ({v['tipo']}) ➔ 📍 {v['pallet']}"
+                    ):
+                        st.write(f"**Localização:** {v['pallet']}")
+                        st.write(f"**Caixa:** {v.get('caixa', 'N/I')}")
+                        st.write(f"**Volume:** {v.get('volume', 'N/I')}")
+
+    # 2. CADASTRAR VINHO
+    elif menu == "2. Cadastrar novo vinho":
+        st.header("➕ CADASTRAR VINHO")
+
+        with st.form("form_cadastrar"):
+            nome = st.text_input("Nome do vinho:").strip()
+            tipo = st.text_input(
+                "Tipo (Tinto, Branco, Rosé, Espumante...):"
+            ).strip()
+            pallet = st.text_input(
+                "Localização (Ex: Pallet 1, Corredor B...):"
+            ).strip()
+
+            caixa = st.selectbox(
+                "📦 Quantidade de garrafas por caixa:",
+                ["12 garrafas", "6 garrafas", "3 garrafas", "1 garrafa"],
+            )
+
+            vol_opcao = st.selectbox(
+                "🧪 Volume / Tamanho da garrafa:",
+                [
+                    "750ml",
+                    "375ml",
+                    "1500ml (Magnum)",
+                    "Outro valor",
+                ],
+            )
+
+            volume_custom = ""
+            if vol_opcao == "Outro valor":
+                volume_custom = st.text_input("Digite o volume customizado:")
+
+            submit = st.form_submit_button("✅ Salvar Vinho")
+
+            if submit:
+                volume_final = (
+                    volume_custom if vol_opcao == "Outro valor" else vol_opcao
+                )
+
+                if nome and tipo and pallet:
+                    novo_vinho = {
+                        "nome": nome,
+                        "tipo": tipo,
+                        "pallet": pallet,
+                        "caixa": caixa,
+                        "volume": volume_final if volume_final else "750ml",
+                    }
+                    st.session_state.estoque.append(novo_vinho)
+                    salvar_dados(st.session_state.estoque)
+                    st.success(f"✅ '{nome}' cadastrado com sucesso!")
+                else:
+                    st.error("❌ Nome, Tipo e Localização são obrigatórios!")
+
+    # 3. VER TODOS OS VINHOS
+    elif menu == "3. Ver todos os vinhos":
+        st.header("🍷 TODOS OS VINHOS")
+
+        if not st.session_state.estoque:
+            st.warning("Nenhum vinho cadastrado.")
+        else:
+            ordem = st.radio(
+                "Como deseja visualizar?",
+                [
+                    "Ordem padrão",
+                    "Ordem Alfabética (Nome)",
+                    "Agrupado por Localização (Pallet)",
+                ],
+            )
+
+            lista_exibicao = list(st.session_state.estoque)
+            if ordem == "Ordem Alfabética (Nome)":
+                lista_exibicao.sort(key=lambda x: x["nome"].lower())
+            elif ordem == "Agrupado por Localização (Pallet)":
+                lista_exibicao.sort(key=lambda x: x["pallet"].lower())
+
+            df = pd.DataFrame(lista_exibicao)
+            df.rename(
+                columns={
+                    "nome": "Nome do Vinho",
+                    "tipo": "Tipo",
+                    "pallet": "Localização (Pallet)",
+                    "caixa": "Caixa",
+                    "volume": "Volume",
+                },
+                inplace=True,
+            )
+            st.dataframe(df, use_container_width=True)
+
+    # 4. EDITAR VINHO
+    elif menu == "4. Editar vinho existente":
+        st.header("✏️ EDITAR VINHO")
+
+        if not st.session_state.estoque:
+            st.warning("Nenhum vinho cadastrado.")
+        else:
+            nomes = [v["nome"] for v in st.session_state.estoque]
+            selecionado = st.selectbox(
+                "Selecione o vinho que deseja editar:", nomes
+            )
+
+            idx = nomes.index(selecionado)
+            vinho = st.session_state.estoque[idx]
+
+            with st.form("form_editar"):
+                novo_nome = st.text_input("Novo Nome:", vinho["nome"])
+                novo_tipo = st.text_input("Novo Tipo:", vinho["tipo"])
+                novo_pallet = st.text_input(
+                    "Nova Localização:", vinho["pallet"]
+                )
+                nova_caixa = st.selectbox(
+                    "Caixa:",
+                    ["12 garrafas", "6 garrafas", "3 garrafas", "1 garrafa"],
+                    index=[
+                        "12 garrafas",
+                        "6 garrafas",
+                        "3 garrafas",
+                        "1 garrafa",
+                    ].index(vinho.get("caixa", "12 garrafas")),
+                )
+                novo_volume = st.text_input(
+                    "Volume:", vinho.get("volume", "750ml")
+                )
+
+                submit_edit = st.form_submit_button("💾 Salvar Alterações")
+
+                if submit_edit:
+                    st.session_state.estoque[idx] = {
+                        "nome": novo_nome,
+                        "tipo": novo_tipo,
+                        "pallet": novo_pallet,
+                        "caixa": nova_caixa,
+                        "volume": novo_volume,
+                    }
+                    salvar_dados(st.session_state.estoque)
+                    st.success(f"✅ '{novo_nome}' atualizado com sucesso!")
+
+    # 5. EXCLUIR VINHO
+    elif menu == "5. Excluir vinho":
+        st.header("🗑️ EXCLUIR VINHO")
+
+        if not st.session_state.estoque:
+            st.warning("Nenhum vinho cadastrado.")
+        else:
+            nomes = [v["nome"] for v in st.session_state.estoque]
+            vinho_excluir = st.selectbox("Selecione o vinho a remover:", nomes)
+
+            if st.button("❌ Confirmar Exclusão"):
+                st.session_state.estoque = [
+                    v
+                    for v in st.session_state.estoque
+                    if v["nome"] != vinho_excluir
+                ]
+                salvar_dados(st.session_state.estoque)
+                st.success(f"✅ '{vinho_excluir}' excluído com sucesso!")
+                st.rerun()
+
+    # 6. EXPORTAR PLANILHA
+    elif menu == "6. Exportar tabela para Excel (CSV)":
+        st.header("📤 EXPORTAR PARA EXCEL (CSV)")
+
+        if st.session_state.estoque:
+            df = pd.DataFrame(st.session_state.estoque)
+            csv_data = df.to_csv(index=False, sep=";").encode("utf-8-sig")
+
+            st.download_button(
+                label="📥 Baixar Planilha em Excel / CSV",
+                data=csv_data,
+                file_name="estoque_vinhos.csv",
+                mime="text/csv",
+            )
+            st.info(
+                "💡 Ao clicar no botão, o arquivo será salvo na sua pasta de Downloads!"
+            )
+        else:
+            st.warning("Nenhum dado para exportar.")
